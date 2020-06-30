@@ -2730,7 +2730,7 @@ OptimizeParams <- function(tc_obj, lnoise_range = NULL,
                                   message(".", appendLF = FALSE)
                                   
                                   #VisualizeImg(tmp_img)
-                                  b <- bpass(image_array = tmp_img,
+                                  b <- CellMigRation:::bpass(image_array = tmp_img,
                                              lnoise = all_params$lnoise[j],
                                              lobject = all_params$diameter[j],
                                              threshold = all_params$threshold[j])
@@ -2738,12 +2738,12 @@ OptimizeParams <- function(tc_obj, lnoise_range = NULL,
                                   
                                   tryCatch({
                                     pk <- suppressMessages(
-                                      pkfnd(im = b,
+                                      CellMigRation:::pkfnd(im = b,
                                             th = all_params$threshold[j],
                                             sz = NextOdd(all_params$diameter[j])))
                                     
                                     cnt <- suppressMessages(
-                                      cntrd(im = b, mx = pk,
+                                      CellMigRation:::cntrd(im = b, mx = pk,
                                             sz = NextOdd(all_params$diameter[j])))
                                     
                                     tmpOUT[["count"]] <- nrow(cnt)
