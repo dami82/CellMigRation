@@ -977,6 +977,8 @@ DetectRadii <- function(x) {
 #'
 #' @param x numeric matrix corresponding to a digital image
 #' @param px.margin integer, number of pixels used as margin while searching/filtering for neighboring particles
+#' @param min.px.diam integer, minimum diameter of a particle (cell). 
+#' Particles with a diameter smaller than min.px.diam are discarded
 #' @param quantile.val numeric, must be bigger than 0 and smaller than 1.
 #' Quantile for discriminating signal and background; only pixels with intensity higher than the corresponding
 #' quantile will count as signal while estimating particle diameters
@@ -996,14 +998,17 @@ DetectRadii <- function(x) {
 #'            c(0, 0, 0, 0, 1, 1, 0, 0, 0, 0),
 #'            c(0, 0, 0, 1, 1, 1, 0, 0, 0, 0))
 #' graphics::image(a)
-#' b <- EstimateDiameterRange(a)
+#' b <- EstimateDiameterRange(a, min.px.diam = 2)
 #' print(b$estim.cell.num)
 #' print(b$raw)
 #'
 #' @importFrom graphics image hist
 #'
 #' @export
-EstimateDiameterRange <- function(x, px.margin = 2, quantile.val = 0.99, plot = TRUE) {
+EstimateDiameterRange <- function(x, px.margin = 2, 
+                                  min.px.diam = 5, 
+                                  quantile.val = 0.99, 
+                                  plot = TRUE) {
   
   QNTS <- as.numeric(quantile(x, probs = quantile.val[1]))
   
@@ -1014,7 +1019,7 @@ EstimateDiameterRange <- function(x, px.margin = 2, quantile.val = 0.99, plot = 
   if (QNTS == min.sig && max.sig > min.sig) {
     QNTS <- mean(c(min.sig, min(tmp.xx[tmp.xx > min.sig], na.rm = TRUE)), na.rm = TRUE)
   }
-
+  
   B <- x
   B[B < QNTS] <- 0
   B[B >= QNTS] <- 1
@@ -1055,6 +1060,7 @@ EstimateDiameterRange <- function(x, px.margin = 2, quantile.val = 0.99, plot = 
   }
   
   FINL <- rdds[rdds$KEEP,]
+  FINL <- FINL[FINL[, "LEN"] >= min.px.diam, ]
   
   yy <- list(estim.cell.num = sum(FINL$KEEP),
              q50.diam = median(FINL$LEN, na.rm = TRUE),
