@@ -2533,6 +2533,8 @@ ComputeTracksStats <- function(tc_obj, time_between_frames, resolution_pixel_per
 #'
 #' @param tc_obj a \code{trackedCells} object
 #' @param lnoise_range numeric vector of lnoise values to be used in the optimization step. Can be NULL
+#' @param min.px.diam integer, minimum diameter of a particle (cell). 
+#' Particles with a diameter smaller than min.px.diam are discarded
 #' @param diameter_range numeric vector of diameter values to be used in the optimization step. Can be NULL
 #' @param threshold_range numeric vector of threshold values to be used in the optimization step. Can be NULL
 #' @param target_cell_num integer, the expected (optimal) number of cells to be detected in each frame
@@ -2555,10 +2557,10 @@ ComputeTracksStats <- function(tc_obj, time_between_frames, resolution_pixel_per
 #' @import foreach
 #'
 #' @export
-OptimizeParams <- function(tc_obj, lnoise_range = NULL,
-                            diameter_range = NULL, threshold_range = NULL,
-                            target_cell_num = NULL, threads = 1,
-                            quantile.val = NULL, px.margin= NULL)
+OptimizeParams <- function(tc_obj, lnoise_range = NULL, min.px.diam = 5,  
+                           diameter_range = NULL, threshold_range = NULL,
+                           target_cell_num = NULL, threads = 1,
+                           quantile.val = NULL, px.margin= NULL)
   
 {
   # do
@@ -2613,8 +2615,9 @@ OptimizeParams <- function(tc_obj, lnoise_range = NULL,
   }
   
   estRDI <- tryCatch({
-    EstimateDiameterRange(x = tmp_img, px.margin = px.margin,
-                            quantile.val = quantile.val, plot = FALSE)},
+    EstimateDiameterRange(x = tmp_img, px.margin = px.margin, 
+                          min.px.diam = min.px.diam,
+                          quantile.val = quantile.val, plot = FALSE)},
     error = function(e) NULL)
   
   # diam range
@@ -2807,7 +2810,7 @@ OptimizeParams <- function(tc_obj, lnoise_range = NULL,
                     "threshold=", ord_params$threshold[ord_params$i == ri])
     
     VisualizeImg(img_mtx = all_results[[ri]]$img,
-                  main = myLAB)
+                 main = myLAB)
     
     top.i <- top.i + 1
   }
