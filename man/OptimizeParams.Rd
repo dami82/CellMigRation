@@ -7,6 +7,7 @@
 OptimizeParams(
   tc_obj,
   lnoise_range = NULL,
+  min.px.diam = 5,
   diameter_range = NULL,
   threshold_range = NULL,
   target_cell_num = NULL,
@@ -19,6 +20,8 @@ OptimizeParams(
 \item{tc_obj}{a \code{trackedCells} object}
 
 \item{lnoise_range}{numeric vector of lnoise values to be used in the optimization step. Can be NULL}
+
+\item{min.px.diam}{integer, minimum diameter of a particle (cell). Particles with a diameter smaller than min.px.diam are discarded}
 
 \item{diameter_range}{numeric vector of diameter values to be used in the optimization step. Can be NULL}
 
