@@ -3382,6 +3382,7 @@ setCellsMeta <- function(tc_obj, experiment = NULL,
 #' large data.frame. A new unique ID is assigned to specifically identify each cell track from each image/experiment.
 #'
 #' @param x a \code{trackedCells}-class object where cells have already been tracked
+#`
 #' @param ... one or more trackedCells-class object(s) where cells have already been tracked
 #' @param meta_id_field string, can take one of the following values, c("tiff_file", "experiment",
 #' "condition", "replicate"). Indicates the meta-data column used as unique ID for the image/experiment.
@@ -3404,8 +3405,7 @@ setCellsMeta <- function(tc_obj, experiment = NULL,
 #' @export
 aggregateTrackedCells <- function(x, ..., 
                                   meta_id_field = c("tiff_file", "experiment",
-                                                    "condition", "replicate"),
-                                  min_frames_per_cell = 1)
+                                                    "condition", "replicate"))
 
 {
   # Inner fxs
