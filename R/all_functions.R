@@ -2886,16 +2886,16 @@ OptimizeParams <- function(tc_obj, lnoise_range = NULL, min.px.diam = 5,
 #'
 #' @export
 CellTracker <- function(tc_obj,
-                         lnoise = NULL, diameter = NULL,
-                         threshold = NULL, maxDisp = 25,
-                         memory_b = 0, goodenough = 0,
-                         threads = 1,
-                         show_plots = TRUE, verbose = TRUE)
+                        lnoise = NULL, diameter = NULL,
+                        threshold = NULL, maxDisp = NULL,
+                        memory_b = 0, goodenough = 0,
+                        threads = 1,
+                        show_plots = TRUE, verbose = TRUE)
 {
   # get stuff
   stack_img <- tc_obj@images
   optimal_params <- tc_obj@optimized
-  
+
   if (length(optimal_params) > 0) {
     my.lnoise <- optimal_params$auto_params$lnoise
     my.diameter <- optimal_params$auto_params$diameter
@@ -2905,51 +2905,51 @@ CellTracker <- function(tc_obj,
     my.diameter <- NA
     my.threshold <- NA
   }
-  
+
   custom_params_flag <- 0
-  
+
   if(!is.null(lnoise) && is.numeric(lnoise)){
     my.lnoise <- lnoise[1]
     custom_params_flag <- 1
   }
-  
+
   if(!is.null(diameter) && is.numeric(diameter)){
     my.diameter <- diameter[1]
     custom_params_flag <- 1
   }
-  
+
   if(!is.null(threshold) && is.numeric(threshold)){
     my.threshold <- threshold[1]
     custom_params_flag <- 1
   }
-  
+
   # Max Disp
   if(!is.null(maxDisp) && is.numeric(maxDisp)) {
     maxDisp <- maxDisp[1]
   } else {
-    maxDisp <- 20
+    maxDisp <- NULL
   }
-  
+
   # Other params
   quiet <- verbose
   force_exec <- FALSE
   j <- NULL
-  
+
   # At this moment, let's play safe!
   # Impose the following
   if (memory_b != 0)
     message("Currently, only memory_b=0 is supported... Resetting.")
   memory_b <- 0
-  
+
   if (goodenough != 0)
     message("Currently, only goodenough=0 is supported... Resetting.")
   goodenough <- 0
-  
+
   # In the end, my params are:
   lnoise <- my.lnoise
   diameter <- my.diameter
   threshold <- my.threshold
-  
+
   track_params <- list(lnoise = lnoise,
                        diameter = diameter,
                        threshold = threshold,
@@ -2960,13 +2960,13 @@ CellTracker <- function(tc_obj,
                        quiet = quiet,
                        verbose = verbose,
                        show_plots = show_plots)
-  
+
   # Final check
   if (sum(sapply(track_params, is.na)) > 0) {
     message("Make sure to set all params for the analysis, or run OptimizeParams()")
     return(tc_obj)
   }
-  
+
   ## ----- debugging -----
   #bpass = CellMigRation:::bpass
   #pkfnd = CellMigRation:::pkfnd
@@ -2976,64 +2976,64 @@ CellTracker <- function(tc_obj,
   #VisualizeCntr = CellMigRation:::VisualizeCntr
   #track = CellMigRation:::track
   ## ----- endo of debugging -----
-  
+
   # Load stack
   stack <- stack_img
-  
+
   InfoImage <- stack$attributes[[1]]
   mImage <- stack$dim$width_m
   nImage <- stack$dim$height_n
   NumberImages <- stack$dim$NumberImages
   FinalImage <- stack$images
-  
+
   ## ----------- Evaluate centroids ---------------------
-  
+
   # locate centroids, via CentroidArray
   if (verbose)
     message("Computing centroid positions", appendLF = FALSE)
-  
+
   ##
   ## Parallelize please
-  
+
   # how many cores can we use?
   num_parallelCores <- threads
   debugging <- TRUE
-  
+
   max.cores <- parallel::detectCores()
   max.cores <- max.cores - 1
   max.cores <- ifelse(max.cores < 1, 1, max.cores)
   my.test <- 1 <= num_parallelCores & num_parallelCores <= max.cores
   use.cores <- ifelse(my.test, num_parallelCores, max.cores)
-  
+
   # cores = 1, do not parallelize
   if (use.cores == 1) {
-    
+
     # Init collectors
     all_centroids <- list()
     all_b <- list()
-    
+
     for (i in 1:NumberImages) {
-      
+
       if (verbose)
         message(".", appendLF = FALSE)
-      
+
       # generate an 1xP array with each column containing centroid output for
       # individual frames
       a <- FinalImage[[i]]
       b <- bpass(image_array = a, lnoise = lnoise, lobject = diameter, threshold = threshold)
       pk <- pkfnd(im = b, th = threshold, sz = NextOdd(diameter))
       cnt <- cntrd(im = b, mx = pk, sz = NextOdd(diameter))
-      
+
       if (show_plots) {
         VisualizeImg(img_mtx = b, las = 1, main = paste0("Stack num. ", i))
         VisualizeCntr(centroids = cnt, width_px = ncol(b), height_px = nrow(b))
       }
-      
+
       # determine that frame s has at least 1 valid centroid
       if(! is.null(cnt) && is.data.frame(cnt) && nrow(cnt) > 0) {
         all_centroids[[length(all_centroids) + 1]] <- cnt
         all_b[[length(all_b) + 1]] <- b
-        
+
       } else {
         message(paste0('No centroids detectd in frame ', i, ' in the current stack'))
         message('Please, check nuclei validation settings for this image stack.')
@@ -3041,63 +3041,63 @@ CellTracker <- function(tc_obj,
     }
     if (verbose)
       message("", appendLF = TRUE)
-    
+
   } else {
-    
+
     if (debugging) {
       cl <- suppressMessages(parallel::makeCluster(use.cores, outfile = ""))
     } else {
       cl <- suppressMessages(parallel::makeCluster(use.cores))
     }
-    
+
     suppressMessages(doParallel::registerDoParallel(cl))
     # Nothing to export! ""FinalImage", "all_params" automatically exported
     #stuffToExp <- c("FinalImage", "all_params")
     stuffToExp <- c()
     suppressMessages(parallel::clusterExport(cl, stuffToExp))
-    
+
     ## %dopar%
     all_results <-
       tryCatch(foreach::foreach(j = (1:NumberImages),
                                 .verbose = TRUE,
                                 .packages = "CellMigRation") %dopar% {
-                                  
+
                                   # Verbose
                                   message(".", appendLF = FALSE)
-                                  
+
                                   # generate an 1xP array with each column containing centroid output for
                                   # individual frames
                                   a <- FinalImage[[j]]
                                   b <- bpass(image_array = a, lnoise = lnoise, lobject = diameter, threshold = threshold)
                                   pk <- pkfnd(im = b, th = threshold, sz = NextOdd(diameter))
                                   cnt <- cntrd(im = b, mx = pk, sz = NextOdd(diameter))
-                                  
+
                                   # determine that frame s has at least 1 valid centroid
                                   if(! is.null(cnt) && is.data.frame(cnt) && nrow(cnt) > 0) {
                                     tmpOUT <- list(cnt = cnt, b = b, j = j)
-                                    
+
                                   } else {
                                     message(paste0('No centroids detectd in frame ', i, ' in the current stack'))
                                     message('Please, check nuclei validation settings for this image stack.')
                                     tmpOUT <- list(cnt = NA, b = b, j = j)
-                                    
+
                                   }
                                   tmpOUT
-                                  
+
                                 }, error = (function(e) {
                                   print(e)
                                   try(parallel::stopCluster(cl), silent = TRUE)
                                   return(NULL)
                                 }))
-    
+
     message("Done!", appendLF = TRUE)
     try({suppressWarnings(parallel::stopCluster(cl))}, silent = TRUE)
-    
+
     re.idx <- order(do.call(c, lapply(all_results, function(x) {x$j})))
     all_results <- all_results[re.idx]
     all_centroids <- lapply(all_results, function(x) {x$cnt})
     all_b <- lapply(all_results, function(x) {x$b})
-    
+
     # Visualize if needed
     if (show_plots) {
       for (ii in 1:length(all_results)){
@@ -3109,41 +3109,83 @@ CellTracker <- function(tc_obj,
       }
     }
   }
-  
+
   # Position list (reformated centroid data for track.m input)
   OUT_centroids <- all_centroids
   # Remove columns that contain brightness and sqare of radius of gyration
   # this is the equivalent of position.m function
   # Also, create a frame(tau)label for each array of centroid data
+  #for (ti in 1:length(all_centroids)) {
+  #
+  #    # retain only positional data by removing columns 3 and 4
+  #    all_centroids[[ti]] <- all_centroids[[ti]] [, 1:2]
+  #    all_centroids[[ti]]$tau <- ti
+  #  }
+  
+  # Updated to avoid NO cells frames
+  all_centroids2 <- list()
   for (ti in 1:length(all_centroids)) {
-    
-    # retain only positional data by removing columns 3 and 4
-    all_centroids[[ti]] <- all_centroids[[ti]] [, 1:2]
-    all_centroids[[ti]]$tau <- ti
+    ttmp <- all_centroids[[ti]]
+    if (nrow(ttmp) > 0) {
+      ttmp <- ttmp[, 1:2]
+      ttmp$tau <- (length(all_centroids2) + 1)
+      all_centroids2[[length(all_centroids2) + 1]] <- ttmp
+    }
   }
-  
+
   # create a matrix that contains centroid data in sequential order by frame(tau)
-  pos <- do.call(rbind, all_centroids)
+  #pos <- do.call(rbind, all_centroids)
+  pos <- do.call(rbind, all_centroids2)
   
-  ## generate tracks
-  tracks <- track(xyzs = pos, maxdisp = maxDisp, params = track_params)
-  
+  tracks2 <- NULL
+  if (!is.null(maxDisp)) {
+    tracks2 <- tryCatch(track(xyzs = pos, maxdisp = maxDisp, params = track_params), error = function(e) NULL)
+  } 
+
+  if (is.null(tracks2)) {
+    tmp.Area <- tc_obj@images$dim$width_m * tc_obj@images$dim$height_n
+    max.disp <- as.integer(as.numeric(sqrt(tmp.Area)) / 5)
+    allDisp <- seq(from=max.disp, to = 5, by = -10)
+    jj0 <- 1
+    while(is.null(tracks2) && jj0 < length(allDisp) ) {
+      tracks2 <- tryCatch(
+        suppressMessages(track(xyzs = pos, maxdisp = allDisp[jj0], params = track_params)), error = function(e) NULL) 
+      jj0 <- jj0 + 1
+    }
+    if (!is.null(tracks2)) {
+      track_params$maxDisp <- allDisp[jj0]
+      message(paste0("The following maxDisp value was used for this analysis: ", allDisp[jj0]))
+    
+    } else {
+      message("a reasonable MaxDisp value couldn't be found! Sorry!")
+      return(NULL)
+    
+    }
+  }
+
+  #tracks <- track(xyzs = pos, maxdisp = maxDisp, params = track_params)
+  tracks <- tracks2
+
+
+  ### generate tracks
+  #tracks <- track(xyzs = pos, maxdisp = maxDisp, params = track_params)
+
   # pack and return
   #OUT <- list(images = all_b,
   #            centroids = OUT_centroids,
   #            positions = pos,
   #            tracks = tracks,
   #            params = track_params)
-  
+
   tc_obj@proc_images <- list(images = all_b)
   tc_obj@centroids <- OUT_centroids
   tc_obj@positions <- pos
   tc_obj@tracks <- tracks
   tc_obj@params <- track_params
-  
+
   tc_obj@ops$track <- 1
   tc_obj@ops$custom_params <- custom_params_flag
-  
+
   return(tc_obj)
 }
 
@@ -3170,6 +3212,9 @@ getTracks <- function(tc_obj, attach_meta = FALSE)
   tmp <- as.data.frame(tmp)
   colnames(tmp) <- c("Y", "X", "frame.ID", "cell.ID")
   TMP <- tmp[, c("frame.ID", "X", "Y", "cell.ID")]
+  # Adjust as per S request
+  TMP <- TMP[, c(4, 2, 3, 1)]
+  rownames(TMP) <- NULL
   if(attach_meta && nrow(TMP) > 0) {
     
     TMP$tiff_file = tc_obj@metadata$tiff_file
@@ -3358,7 +3403,7 @@ setCellsMeta <- function(tc_obj, experiment = NULL,
 #'
 #' @export
 aggregateTrackedCells <- function(x, ..., meta_id_field = c("tiff_file", "experiment",
-                                                             "condition", "replicate"))
+                                                             "condition", "replicate"), )
 {
   # Inner fxs
   check_trobj <- function(xx) {
@@ -3413,7 +3458,9 @@ aggregateTrackedCells <- function(x, ..., meta_id_field = c("tiff_file", "experi
   my.mult <- compute_mult(max(my_tracks[, "cell.ID"], na.rm = TRUE))
   my_tracks[,"new.ID"] <- (my.mult * my_tracks[,"new.ID"]) + my_tracks[, "cell.ID"]
   
-  keep.colz <- c('new.ID', 'frame.ID', 'X', 'Y', 'cell.ID', 'tiff_file', 'experiment', 'condition', 'replicate')
+  # Adjust as per S request
+  #keep.colz <- c('new.ID', 'frame.ID', 'X', 'Y', 'cell.ID', 'tiff_file', 'experiment', 'condition', 'replicate')
+  keep.colz <- c('new.ID', 'X', 'Y', 'frame.ID', 'cell.ID', 'tiff_file', 'experiment', 'condition', 'replicate')
   out <- my_tracks[, keep.colz]
   rownames(out) <- NULL
   
