@@ -3402,8 +3402,11 @@ setCellsMeta <- function(tc_obj, experiment = NULL,
 #' @importFrom graphics par image
 #'
 #' @export
-aggregateTrackedCells <- function(x, ..., meta_id_field = c("tiff_file", "experiment",
-                                                             "condition", "replicate"), )
+aggregateTrackedCells <- function(x, ..., 
+                                  meta_id_field = c("tiff_file", "experiment",
+                                                    "condition", "replicate"),
+                                  min_frames_per_cell = 1)
+
 {
   # Inner fxs
   check_trobj <- function(xx) {
