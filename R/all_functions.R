@@ -2644,6 +2644,7 @@ OptimizeParams <- function(tc_obj, lnoise_range = NULL, min.px.diam = 5,
     lnoise_range <- unique(as.integer(seq(from = min.px.diam, 
                                           to = quantile(estRDI$raw$LEN, probs = 0.25), 
                                           length.out = 3)))
+    lnoise_range <- lnoise_range[lnoise_range >= min.px.diam] 
   
   if(is.null(threshold_range)) {
     threshold_range <- seq(max(0, (min(tmp_img[tmp_img > min(tmp_img, na.rm = TRUE)], na.rm = TRUE) - 1)),
@@ -2658,7 +2659,10 @@ OptimizeParams <- function(tc_obj, lnoise_range = NULL, min.px.diam = 5,
                            diameter = diameter_range,
                            threshold = threshold_range)
   
-  all_params <- all_params[all_params$diameter > (4 + all_params$lnoise), ]
+  tmp_params <- utils::head(all_params, 6)
+  all_params <- all_params[all_params$diameter > (5 + all_params$lnoise), ]
+  all_params <- all_params[all_params$diameter > (2.2 * all_params$lnoise), ]
+  if (nrow(all_params) < 2) {all_params <- tmp_params}
   rownames(all_params) <- NULL
   
   if(nrow(all_params) < 1) {
